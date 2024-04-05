@@ -1,0 +1,54 @@
+image: ubuntu:22.04
+
+stages:
+  - build
+  - deploy
+
+variables:
+  PULL_REGISTRY: https://'$USERNAME':'$BOT_PRIVATE_TOKEN'@gitlab.rockship.co/loctvl842/cv-parser-report.git
+  IMAGE_NAME: cv-parser-report
+  DEPLOY_TAG: latest
+
+.check_variables:
+  before_script:
+    - test -n "$SSH_PRIVATE_KEY" || ( echo "missing variable SSH_PRIVATE_KEY" && exit 1)
+    - test -n "$BOT_PRIVATE_TOKEN" || ( echo "missing variable BOT_PRIVATE_TOKEN" && exit 1)
+    - test -n "$ROCKITFLOW_SERVER_PROD" || ( echo "missing variable "$ROCKITFLOW_SERVER_PROD"" && exit 1)
+    - test -n "#USERNAME" || ( echo "missing variable USERNAME" && exit 1)
+
+.install_ssh:
+  before_script:
+    - apt-get update -qq && apt-get install -qq curl
+    - which ssh-agent || apt-get install -qq openssh-client
+    - eval $(ssh-agent -s)
+    - ssh-add <(echo "$SSH_PRIVATE_KEY")
+    - mkdir -p ~/.ssh
+    - chmod 700 ~/.ssh
+    - touch ~/.ssh/known_hosts
+    - chmod 644 ~/.ssh/known_hosts
+    - echo -e "Host *\n\tStrictHostKeyChecking no\n\n" > ~/.ssh/config
+
+build:
+  stage: build
+  extends: 
+    - .check_variables
+    - .install_ssh  
+  script:
+    - ssh $ROCKITFLOW_SERVER_PROD "
+      cd cv-parser-report;
+      git fetch $PULL_REGISTRY;
+      git checkout FETCH_HEAD;
+      docker build -t $IMAGE_NAME:$DEPLOY_TAG --platform=linux/amd64 --build-arg CACHEBUST=$CI_COMMIT_SHORT_SHA ."
+  only:
+    - main
+
+deploy_production:
+  extends: .install_ssh
+  stage: deploy
+  script:
+    - ssh $ROCKITFLOW_SERVER_PROD "
+      cd cv-parser-report;
+      docker compose down;
+      docker compose up -d"
+  only: 
+    - main

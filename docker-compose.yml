@@ -1,0 +1,19 @@
+version: '3'
+
+services:
+  scraper:
+    image: loctvl842/ali-express-scraper
+    container_name: ali-express-scraper
+    build: .
+    ports:
+      - "3000:3000"
+    env_file: .env
+
+  automation:
+    image: loctvl842/ali-express-scraper
+    container_name: ali-express-automation
+    build: .
+    env_file: .env
+    volumes:
+      - ./automate.js:/app/automate.js
+    command: node automate.js
