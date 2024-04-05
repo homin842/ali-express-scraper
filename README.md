@@ -23,3 +23,17 @@ Run with docker:
 ```bash
 docker-compose up
 ```
+
+### Seeding
+
+- **Seed manually**:
+
+```curl
+curl --location --request POST 'http://localhost:3000/products/seed/ali-express'
+```
+
+- **Seed automatically**:
+
+```bash
+node automate.js
+```
